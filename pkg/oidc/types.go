@@ -44,6 +44,39 @@ func (d *Display) UnmarshalText(text []byte) error {
 
 type Gender string
 
+type Locale struct {
+	tag language.Tag
+}
+
+func NewLocale(tag language.Tag) *Locale {
+	return &Locale{tag: tag}
+}
+
+func (l *Locale) Tag() language.Tag {
+	if l == nil {
+		return language.Und
+	}
+
+	return l.tag
+}
+
+func (l *Locale) String() string {
+	return l.Tag().String()
+}
+
+func (l *Locale) MarshalJSON() ([]byte, error) {
+	tag := l.Tag()
+	if tag.IsRoot() {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(tag)
+}
+
+func (l *Locale) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &l.tag)
+}
+
 type Locales []language.Tag
 
 func (l *Locales) UnmarshalText(text []byte) error {
@@ -125,19 +158,18 @@ func (s SpaceDelimitedArray) Value() (driver.Value, error) {
 	return strings.Join(s, " "), nil
 }
 
-type Time time.Time
+type Time int64
 
-func (t *Time) UnmarshalJSON(data []byte) error {
-	var i int64
-	if err := json.Unmarshal(data, &i); err != nil {
-		return err
-	}
-	*t = Time(time.Unix(i, 0).UTC())
-	return nil
+func (ts Time) AsTime() time.Time {
+	return time.Unix(int64(ts), 0)
 }
 
-func (t *Time) MarshalJSON() ([]byte, error) {
-	return json.Marshal(time.Time(*t).UTC().Unix())
+func FromTime(tt time.Time) Time {
+	return Time(tt.Unix())
+}
+
+func NowTime() Time {
+	return FromTime(time.Now())
 }
 
 type RequestObject struct {
@@ -150,5 +182,4 @@ func (r *RequestObject) GetIssuer() string {
 	return r.Issuer
 }
 
-func (r *RequestObject) SetSignatureAlgorithm(algorithm jose.SignatureAlgorithm) {
-}
+func (*RequestObject) SetSignatureAlgorithm(algorithm jose.SignatureAlgorithm) {}
